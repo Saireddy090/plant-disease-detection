@@ -1,27 +1,20 @@
 import React, { useState } from 'react';
 
-export default function DiagnosisResult({ result }) {
+export default function DiagnosisResult({ result, onReset }) {
   const [activeTab, setActiveTab] = useState('organic');
 
   if (!result) {
     return (
-      <div className="glass-card result-placeholder-card">
-        <div className="placeholder-glow-ring">
-          <div className="placeholder-icon-wrap">
-            <svg viewBox="0 0 24 24" className="placeholder-leaf-svg">
-              <path d="M12 3C6.5 3 2 6.5 2 12c0 3.58 2.5 6.55 6 7.5v-2.13C5.5 16.5 4 14.5 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.5-1.5 4.5-4 5.37v2.13c3.5-.95 6-3.92 6-7.5 0-5.5-4.5-9-10-9zm1 14.93V21h-2v-3.07c-2.34-.48-4-2.52-4-4.93 0-2.76 2.24-5 5-5s5 2.24 5 5c0 2.41-1.66 4.45-4 4.93z"/>
-            </svg>
-          </div>
+      <div className="app-card result-awaiting-card" id="results-placeholder">
+        <div className="awaiting-icon-wrap">
+          <svg style={{ width: 36, height: 36, fill: 'currentColor' }} viewBox="0 0 24 24">
+            <path d="M12 3C6.5 3 2 6.5 2 12c0 3.58 2.5 6.55 6 7.5v-2.13C5.5 16.5 4 14.5 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8c0 2.5-1.5 4.5-4 5.37v2.13c3.5-.95 6-3.92 6-7.5 0-5.5-4.5-9-10-9zm1 14.93V21h-2v-3.07c-2.34-.48-4-2.52-4-4.93 0-2.76 2.24-5 5-5s5 2.24 5 5c0 2.41-1.66 4.45-4 4.93z"/>
+          </svg>
         </div>
-        <h3 className="placeholder-title">Awaiting Leaf Diagnostics</h3>
-        <p className="placeholder-desc">
-          Upload a high-resolution field or greenhouse leaf photo on the left, or pick one from the verified PlantVillage gallery below to run the OpenCV CLAHE & MobileNetV2 CNN pipeline.
+        <h3 className="awaiting-title">Awaiting Leaf Diagnosis</h3>
+        <p className="awaiting-text">
+          Upload a crop leaf photograph or select one of the verified sample leaves on the left to analyze with the MobileNetV2 CNN model.
         </p>
-        <div className="placeholder-feature-tags">
-          <span className="feat-tag">⚡ 28ms Latency</span>
-          <span className="feat-tag">🌿 38 Plant Classes</span>
-          <span className="feat-tag">🔬 CLAHE Normalized</span>
-        </div>
       </div>
     );
   }
@@ -29,192 +22,175 @@ export default function DiagnosisResult({ result }) {
   const { diagnosis, top3_ranking, inference_time_ms, foliage_ratio, is_leaf_warning } = result;
   const isHealthy = diagnosis.status === 'Healthy';
 
-  // Determine severity coloring
-  let severityTheme = 'theme-moderate';
-  if (isHealthy) {
-    severityTheme = 'theme-healthy';
-  } else if (diagnosis.severity === 'Critical' || diagnosis.severity === 'High') {
-    severityTheme = 'theme-critical';
-  }
-
   return (
-    <div className={`glass-card result-card ${severityTheme}`}>
-      <div className="card-heading">
-        <div className="heading-title-group">
-          <span className={`status-pulse-orb ${isHealthy ? 'orb-healthy' : 'orb-infected'}`} />
-          <span>Diagnostic Assessment</span>
-        </div>
-        <span className="latency-badge">
+    <div 
+      className={`app-card result-card-active ${isHealthy ? 'status-healthy-theme' : 'status-diseased-theme'}`}
+      id="results-card"
+    >
+      <div className="card-title-bar">
+        <h2 className="card-title">
+          <svg style={{ width: 22, height: 22, fill: isHealthy ? 'var(--healthy)' : 'var(--diseased)' }} viewBox="0 0 24 24">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+          </svg>
+          Diagnostic Assessment
+        </h2>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
           ⚡ {inference_time_ms} ms Latency
         </span>
       </div>
 
       {is_leaf_warning && (
-        <div className="foliage-warning-alert">
-          <span className="alert-icon">⚠️</span>
-          <span>
-            Low foliage tissue detected ({Math.round(foliage_ratio * 100)}%). Ensure leaf blade fills at least 15% of frame against neutral backdrop.
-          </span>
+        <div style={{
+          padding: '0.75rem 1rem',
+          background: 'rgba(245, 127, 23, 0.12)',
+          border: '1px solid rgba(245, 127, 23, 0.35)',
+          borderRadius: '10px',
+          color: '#e65100',
+          fontSize: '0.8rem',
+          marginBottom: '1.2rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <span>⚠️</span>
+          <span>Notice: Low foliage tissue detected ({Math.round(foliage_ratio * 100)}%). Ensure the leaf blade fills the central frame.</span>
         </div>
       )}
 
-      {/* Main Champion Hero Result Banner */}
-      <div className={`diagnosis-hero-banner ${isHealthy ? 'hero-healthy' : 'hero-infected'}`}>
-        <div className="hero-left">
-          <div className="hero-crop-meta">
-            <span className="crop-tag">{diagnosis.crop}</span>
-            <span className="meta-bullet">•</span>
-            <span className="pathogen-tag">
-              {diagnosis.pathogen !== 'None' && diagnosis.pathogen !== 'N/A' ? diagnosis.pathogen : 'No Pathogen (Vibrant)'}
-            </span>
+      {/* Disease Name & Status Banner */}
+      <div className={`result-status-banner ${isHealthy ? 'status-healthy-theme' : 'status-diseased-theme'}`}>
+        <div className="status-left-meta">
+          <div className="result-crop-tag">
+            {diagnosis.crop} • {diagnosis.pathogen !== 'None' ? diagnosis.pathogen : 'Healthy Foliage'}
           </div>
-
-          <h2 className="hero-disease-name">
+          <h1 className="result-disease-heading">
             {diagnosis.disease}
-          </h2>
-
-          <div className="hero-confidence-row">
-            <div className="confidence-pill">
-              <span className="conf-label">Confidence:</span>
-              <strong className="conf-value">{diagnosis.confidence_pct}%</strong>
-            </div>
-            <div className="model-chip">
-              MobileNetV2 CNN
-            </div>
-          </div>
+          </h1>
         </div>
 
-        <div className="hero-right">
-          <div className={`status-pill-badge ${isHealthy ? 'status-healthy' : 'status-infected'}`}>
-            <span className="status-dot-blink" />
-            <span>{diagnosis.status}</span>
-          </div>
-          
-          <div className="severity-meter-mini">
-            <span className="severity-label">Severity Level:</span>
-            <span className={`severity-val severity-${diagnosis.severity.toLowerCase()}`}>
-              {diagnosis.severity}
-            </span>
+        <div className="status-right-badge">
+          <span className={`status-badge-chip ${isHealthy ? 'status-badge-healthy' : 'status-badge-diseased'}`}>
+            {isHealthy ? (
+              <>
+                <svg style={{ width: 16, height: 16, fill: '#ffffff' }} viewBox="0 0 24 24">
+                  <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                </svg>
+                <span>Healthy Leaf</span>
+              </>
+            ) : (
+              <>
+                <svg style={{ width: 16, height: 16, fill: '#ffffff' }} viewBox="0 0 24 24">
+                  <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                </svg>
+                <span>{diagnosis.status}</span>
+              </>
+            )}
+          </span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right', marginTop: '0.4rem' }}>
+            Severity: <strong style={{ color: isHealthy ? 'var(--healthy)' : 'var(--diseased)' }}>{diagnosis.severity}</strong>
           </div>
         </div>
       </div>
 
-      {/* Foliage Purity Meter */}
-      <div className="foliage-meter-bar">
-        <div className="foliage-label">
-          <span>🌿 Chlorophyll Foliage Coverage:</span>
-          <strong>{Math.round(foliage_ratio * 100)}% Verified Tissue</strong>
+      {/* Confidence Percentage with Animated Progress Bar */}
+      <div className="confidence-bar-section">
+        <div className="conf-bar-header">
+          <span>AI Diagnostic Confidence</span>
+          <span className="conf-bar-percentage">{diagnosis.confidence_pct}%</span>
         </div>
-        <div className="foliage-track">
+        <div className="progress-track" role="progressbar" aria-valuenow={diagnosis.confidence_pct} aria-valuemin="0" aria-valuemax="100">
           <div 
-            className="foliage-fill" 
-            style={{ width: `${Math.min(100, Math.max(10, Math.round(foliage_ratio * 100)))}%` }} 
+            className={`progress-fill ${isHealthy ? 'progress-fill-healthy' : 'progress-fill-diseased'}`}
+            style={{ width: `${diagnosis.confidence_pct}%` }}
           />
         </div>
       </div>
 
-      {/* Top 3 Predictions Probability Breakdown */}
-      <div className="confidence-distribution-box">
-        <div className="dist-header">
-          <span>Top Candidates Distribution</span>
-          <span className="dist-subtitle">Multi-Class Probability Distribution</span>
+      {/* Observed Symptoms */}
+      {diagnosis.symptoms && (
+        <div className="symptoms-preview-box">
+          <div className="symptoms-label">Observed Leaf Symptoms:</div>
+          <p className="symptoms-detail">{diagnosis.symptoms}</p>
         </div>
+      )}
 
-        <div className="candidate-list">
-          {top3_ranking.map((cand, idx) => (
-            <div key={cand.rank} className={`candidate-row ${idx === 0 ? 'candidate-champion' : ''}`}>
-              <div className="candidate-meta">
-                <div className="candidate-name-wrap">
-                  <span className="candidate-rank">#{cand.rank}</span>
-                  <span className="candidate-name">{cand.crop} — {cand.disease}</span>
-                </div>
-                <span className="candidate-pct">{cand.confidence_pct}%</span>
-              </div>
-              <div className="candidate-bar-track">
-                <div 
-                  className={`candidate-bar-fill fill-rank-${cand.rank}`}
-                  style={{ width: `${cand.confidence_pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Observed Symptoms Box */}
-      <div className="symptoms-card">
-        <div className="symptoms-title">
-          <svg viewBox="0 0 24 24" className="symptom-icon">
-            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-          </svg>
-          <span>Observed Pathology & Lesion Morphology</span>
-        </div>
-        <p className="symptoms-text">
-          {diagnosis.symptoms}
-        </p>
-      </div>
-
-      {/* Actionable Remedies Section with Realistic Animated Tabs */}
-      <div className="remedy-container">
-        <div className="remedy-nav">
+      {/* Treatment Tips Section */}
+      <div className="treatment-section">
+        <div className="treatment-nav-tabs">
           <button 
-            className={`remedy-nav-tab ${activeTab === 'organic' ? 'active tab-organic' : ''}`}
+            className={`treatment-tab-btn ${activeTab === 'organic' ? 'active' : ''}`}
             onClick={() => setActiveTab('organic')}
           >
             🌱 Organic Remedies
           </button>
           <button 
-            className={`remedy-nav-tab ${activeTab === 'chemical' ? 'active tab-chemical' : ''}`}
+            className={`treatment-tab-btn ${activeTab === 'chemical' ? 'active' : ''}`}
             onClick={() => setActiveTab('chemical')}
           >
             🧪 Chemical Control
           </button>
           <button 
-            className={`remedy-nav-tab ${activeTab === 'prevention' ? 'active tab-prevention' : ''}`}
+            className={`treatment-tab-btn ${activeTab === 'prevention' ? 'active' : ''}`}
             onClick={() => setActiveTab('prevention')}
           >
             🛡️ Cultural Prevention
           </button>
         </div>
 
-        <div className="remedy-body-card">
+        <div className="treatment-content-box">
           {activeTab === 'organic' && (
-            <div className="remedy-panel anim-fade-in">
-              <div className="remedy-type-heading">
-                <span>🌱 Recommended Bio-Fungicides & Cultural Measures:</span>
-              </div>
-              <p className="remedy-detail-text">{diagnosis.organic_remedy}</p>
-              <div className="remedy-tip-banner">
-                💡 <em>Tip: Spray during early morning or overcast days to prevent leaf phototoxicity.</em>
-              </div>
+            <div>
+              <div className="treatment-heading">🌱 Recommended Organic & Bio-Fungicide Treatment:</div>
+              <p className="treatment-text">{diagnosis.organic_remedy}</p>
             </div>
           )}
-
           {activeTab === 'chemical' && (
-            <div className="remedy-panel anim-fade-in">
-              <div className="remedy-type-heading">
-                <span>🧪 Targeted Chemical Fungicide & Bactericide Compounds:</span>
-              </div>
-              <p className="remedy-detail-text">{diagnosis.chemical_remedy}</p>
-              <div className="remedy-tip-banner chemical-tip">
-                ⚠️ <em>Ensure compliance with Pre-Harvest Interval (PHI) regulations and rotate FRAC action groups.</em>
-              </div>
+            <div>
+              <div className="treatment-heading">🧪 Targeted Chemical Compounds:</div>
+              <p className="treatment-text">{diagnosis.chemical_remedy}</p>
             </div>
           )}
-
           {activeTab === 'prevention' && (
-            <div className="remedy-panel anim-fade-in">
-              <div className="remedy-type-heading">
-                <span>🛡️ Preventative Husbandry & Disease Avoidance:</span>
-              </div>
-              <p className="remedy-detail-text">{diagnosis.prevention}</p>
-              <div className="remedy-tip-banner">
-                🌾 <em>Incorporate 2-year non-solanaceous crop rotations to interrupt pathogen spore life cycles.</em>
-              </div>
+            <div>
+              <div className="treatment-heading">🛡️ Best Agronomic Practices:</div>
+              <p className="treatment-text">{diagnosis.prevention}</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Top 3 Alternative Candidates */}
+      {top3_ranking && top3_ranking.length > 1 && (
+        <div style={{ marginTop: '1.2rem', paddingTop: '1.2rem', borderTop: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+            Alternative Candidates Breakdown
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {top3_ranking.map((cand) => (
+              <div key={cand.rank} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                <span>#{cand.rank} {cand.crop} — {cand.disease}</span>
+                <span style={{ fontWeight: 700, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>{cand.confidence_pct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Try Another Image Button */}
+      {onReset && (
+        <div style={{ marginTop: '1.6rem', textAlign: 'center' }}>
+          <button 
+            className="btn-reset-action" 
+            onClick={onReset}
+            style={{ width: '100%', justifyContent: 'center' }}
+          >
+            <svg style={{ width: 16, height: 16, fill: 'currentColor' }} viewBox="0 0 24 24">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            <span>Try Another Image</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
