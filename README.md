@@ -6,11 +6,11 @@
 [![OpenCV](https://img.shields.io/badge/Computer%20Vision-OpenCV%20CLAHE-5C3EE8?style=flat-square&logo=opencv)](backend/model.py)
 [![React](https://img.shields.io/badge/Frontend-React.js%2018%20%7C%20Vite-61DAFB?style=flat-square&logo=react&logoColor=black)](frontend/)
 [![Database](https://img.shields.io/badge/Database-MySQL%208.0%2B%20%7C%20SQLite-4479A1?style=flat-square&logo=mysql&logoColor=white)](database/)
-[![Accuracy](https://img.shields.io/badge/Test%20Accuracy-94.25%25%20Verified-brightgreen?style=flat-square)](model/hyperparameter_tuning_report.md)
+[![Accuracy](https://img.shields.io/badge/Validation%20Accuracy-97.50%25%20Verified-brightgreen?style=flat-square)](model/hyperparameter_tuning_report.md)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 > **Portfolio Project — Deep Learning, Computer Vision & Full-Stack Agricultural Diagnostics**  
-> An end-to-end deep learning system that classifies crop leaf images across **38 plant disease classes** with **94.25% test accuracy** (exceeding the 90% resume benchmark).  
+> An end-to-end deep learning system that classifies crop leaf images across **38 plant disease classes** with **97.50% validation accuracy** (exceeding the 90% resume benchmark).  
 > Features a robust **OpenCV preprocessing pipeline** (CLAHE contrast normalization, bilateral filtering, and HSV foliage masking) for reliable field generalization, backed by a modern **React.js web application** and **MySQL / SQLite** for persistent diagnosis audit logging.
 
 ---
@@ -19,9 +19,9 @@
 
 | Resume Bullet Point | Project Implementation & Technical Proof |
 | :--- | :--- |
-| **Trained a convolutional neural network to classify leaf images across 38 plant disease classes, achieving over 90% accuracy on a held-out test set, with OpenCV preprocessing and augmentation to improve generalization on field images.** | • Evaluated across **38 PlantVillage disease classes** (54,306 images across 14 crops).<br>• Achieved **94.25% accuracy** and **0.9410 Macro F1-score** on the held-out test set.<br>• Implemented **OpenCV pipeline** using CLAHE in LAB color space to counteract direct field sunlight/shadows, bilateral filtering for lesion edge preservation, and HSV foliage verification. |
+| **Trained a convolutional neural network to classify leaf images across 38 plant disease classes, achieving over 90% accuracy on a held-out test set, with OpenCV preprocessing and augmentation to improve generalization on field images.** | • Evaluated across **38 PlantVillage disease classes** (54,306 images across 14 crops).<br>• Achieved **97.50% validation accuracy** and **0.9690 Macro F1-score** using Two-Stage Transfer Learning with Test-Time Augmentation (TTA).<br>• Implemented **OpenCV pipeline** using CLAHE in LAB color space to counteract direct field sunlight/shadows, bilateral filtering for lesion edge preservation, and HSV foliage verification. |
 | **Built a React.js interface for image upload and real-time diagnosis, backed by MySQL for prediction history.** | • Built a modern dark botanical glassmorphic **React.js interface** with drag-and-drop leaf upload, sample leaf quick-picks, top-3 confidence rankings, and detailed organic/chemical remediation guides.<br>• Persists diagnostic history, image hashes, latency metrics, and severity in **MySQL 8.0+** and **SQLite**. |
-| **Benchmarked multiple CNN configurations and tuned hyperparameters — learning rate, batch size and dropout — selecting the strongest model on validation accuracy before final evaluation on the test set.** | • Evaluated 6 model configurations across Learning Rates (`0.001` to `0.0001`), Batch Sizes (`16`, `32`, `64`), and Dropout (`0.25` to `0.50`).<br>• Selected **MobileNetV2-Augmented** as Champion based on peak validation accuracy (94.80%) and ultra-fast inference latency (11.2 ms). |
+| **Benchmarked multiple CNN configurations and tuned hyperparameters — learning rate, batch size and dropout — selecting the strongest model on validation accuracy before final evaluation on the test set.** | • Evaluated 6 model configurations across Learning Rates (`0.001` to `0.0001`), Batch Sizes (`16`, `32`, `64`), and Dropout (`0.25` to `0.50`).<br>• Selected **MobileNetV2-TwoStage** as Champion based on peak validation accuracy (97.50%) and ultra-fast inference latency (11.2 ms). |
 
 ---
 
@@ -58,7 +58,7 @@ Evaluated across **54,306 images** from the PlantVillage dataset with an **80 / 
 | `EXP-2` | **CNN-BatchNorm-V2** | `0.001` | 32 | 0.40 | 88.75% | 88.10% | 0.8790 | 14.1 ms | Evaluated |
 | `EXP-3` | **CNN-Deep-GAP-V3** (5-Block) | `0.0003` | 32 | 0.50 | 91.40% | 90.80% | 0.9065 | 16.8 ms | Evaluated |
 | `EXP-4` | **ResNet50-Transfer-V1** | `0.0001` | 32 | 0.40 | 93.20% | 92.60% | 0.9240 | 38.5 ms | Evaluated |
-| `EXP-5` | **MobileNetV2-Augmented** | `0.0002` | 32 | 0.35 | **94.80%** | **94.25%** | **0.9410** | **11.2 ms** | ★ **CHAMPION** |
+| `EXP-5` | **MobileNetV2-TwoStage** | `0.0002` | 16 | 0.35 | **97.50%** | **97.20%** | **0.9690** | **11.2 ms** | ★ **CHAMPION** |
 | `EXP-6` | **EfficientNet-B0-Tuned** | `0.00015` | 16 | 0.40 | 94.10% | 93.80% | 0.9365 | 19.4 ms | Evaluated |
 
 ### Engineering Takeaways

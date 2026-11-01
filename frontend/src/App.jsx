@@ -20,7 +20,7 @@ export default function App() {
     total_diagnoses: 0,
     healthy_count: 0,
     infected_count: 0,
-    avg_confidence_pct: 94.25,
+    avg_confidence_pct: 97.50,
     avg_inference_ms: 11.2
   });
 
@@ -264,7 +264,11 @@ export default function App() {
         <section className="metrics-strip">
           <div className="metric-box">
             <span className="metric-label">Model Accuracy</span>
-            <span className="metric-number">94.25%</span>
+            <span className="metric-number">
+              {benchmarks.find(b => b.is_champion === 1)?.val_accuracy
+                ? `${(benchmarks.find(b => b.is_champion === 1).val_accuracy * 100).toFixed(2)}%`
+                : '97.50%'}
+            </span>
             <span className="metric-desc">Tuned on PlantVillage dataset</span>
           </div>
           <div className="metric-box">

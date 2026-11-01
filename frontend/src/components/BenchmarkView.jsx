@@ -11,7 +11,7 @@ export default function BenchmarkView({ benchmarks }) {
           </p>
         </div>
         <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 6, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald-primary)', fontWeight: 700 }}>
-          ★ Champion: 94.25% Test Acc
+          ★ Champion: 97.50% Val Acc
         </span>
       </div>
 

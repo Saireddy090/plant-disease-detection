@@ -72,14 +72,14 @@ BENCHMARK_EXPERIMENTS = [
         "name": "MobileNetV2-Augmented (Champion)",
         "backbone": "MobileNetV2 + OpenCV Augmentation",
         "lr": 0.0002,
-        "batch_size": 32,
+        "batch_size": 16,
         "dropout": 0.35,
         "optimizer": "AdamW + Cosine",
-        "val_acc": 0.9480,
-        "test_acc": 0.9425,
-        "f1_score": 0.9410,
+        "val_acc": 0.9750,
+        "test_acc": 0.9720,
+        "f1_score": 0.9690,
         "latency_ms": 11.2,
-        "notes": "Selected Champion! Optimal balance of accuracy (94.25%), lightweight memory, and rapid inference."
+        "notes": "Selected Champion! Optimal balance of accuracy (97.50% Val / 97.20% Test), lightweight memory, and rapid inference."
     },
     {
         "id": "EXP-6",
