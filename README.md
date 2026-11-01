@@ -141,23 +141,24 @@ Navigate to **`http://localhost:8000`** in your browser.
 ```
 
 ### 🧠 Real Leaf Training Pipeline
-- **Authentic Dataset**: Sourced genuine high-resolution photographic leaf samples from the **PlantVillage** dataset repository (`raw/color/`).
-- **Hardware Acceleration**: Automatically detects and leverages **Apple Silicon Metal Performance Shaders (MPS GPU)** or NVIDIA CUDA, achieving ~3 seconds per epoch.
-- **Data Augmentation**: Incorporates random horizontal/vertical flips, rotations (±20°), color jittering (brightness, contrast, saturation), and ImageNet normalization.
-- **Champion Checkpoint**: Exports trained model weights directly to `model/plant_disease_cnn.pth` (11 MB), which is immediately loaded by the FastAPI inference engine.
+- **Authentic Dataset**: Expanded to **600 genuine photographic leaf samples** from the **PlantVillage** dataset repository across 30 representative agricultural classes (Apple, Tomato, Corn, Grape, Peach, Bell Pepper, Potato, Squash, Strawberry, Cherry).
+- **Hardware Acceleration**: Automatically detects and leverages **Apple Silicon Metal Performance Shaders (MPS GPU)** or NVIDIA CUDA, executing epochs in ~9 seconds on 600 images.
+- **Data Augmentation & Label Smoothing**: Incorporates label smoothing (`0.08`), random horizontal/vertical flips, rotations (±20°), color jittering, and ImageNet tensor normalization.
+- **Champion Checkpoint**: Exports trained model weights directly to `model/plant_disease_cnn.pth` (11 MB), which is dynamically loaded by the FastAPI inference engine.
 
 ---
 
 ## 🖥️ Interactive Web UI Features
 
-1. **Leaf Drag & Drop Zone**: Instant upload with image preview, resolution validation, and foliage tissue ratio check.
-2. **Verified Sample Leaf Quick-Picks**: Test immediate diagnosis on sample leaves (Healthy Tomato, Early Blight, Cedar Apple Rust, Late Blight) without uploading external files.
-3. **Confidence Gauge & Top-3 Candidates**: Visual probability meters showing multi-class distribution.
-4. **Actionable Remediation Tabs**: Direct agricultural recommendations for:
+1. **Holographic Laser Leaf Scanner**: Real-time laser scanning line with HUD reticle corners, foliage tissue verification, and visual analysis feedback.
+2. **10 Verified Sample Leaf Quick-Picks**: Interactive visual gallery of real PlantVillage photos (Healthy Tomato, Early Blight, Cedar Apple Rust, Late Blight, Corn Common Rust, Grape Black Rot, Peach Bacterial Spot, Bell Pepper Healthy, Tomato Bacterial Spot, Apple Scab) with filter pills and thumbnail previews.
+3. **Breathing Severity Status Indicator**: Dynamic color-coded breathing pulse indicators (Emerald for Healthy, Amber for Moderate, Crimson for Critical).
+4. **Multi-Class Confidence Distribution**: Gradient probability meters displaying top-3 candidate predictions with millisecond inference telemetry.
+5. **Actionable Remediation Tabs**: Direct agricultural recommendations for:
    - 🌱 **Organic Treatments** (Neem oil, Bacillus subtilis, copper soaps, pruning)
    - 🧪 **Chemical Fungicides & Bactericides** (Mancozeb, Chlorothalonil, Myclobutanil)
    - 🛡️ **Preventative Cultural Practices** (Drip irrigation, crop rotation, solarization)
-5. **Prediction History & Audit Log**: Filterable real-time table of past predictions stored in MySQL / SQLite.
+6. **Prediction History & Audit Log**: Filterable real-time table of past predictions stored in MySQL / SQLite.
 6. **Benchmark Visualizer**: Side-by-side comparison of all evaluated CNN configurations.
 
 ---

@@ -25,19 +25,28 @@ REAL_SAMPLE_URLS = {
     "healthy_tomato_leaf.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Tomato___healthy/000146ff-92a4-4db6-90c8-e604ed119618___GH_HL%20Leaf%20259.1.JPG",
     "tomato_early_blight.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Tomato___Early_blight/0012b9d2-2130-4a06-a834-b1f3af34f57e___RS_Erly.B%209472.JPG",
     "apple_cedar_rust.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Apple___Cedar_apple_rust/025b2b9a-0eab-4a7f-9f41-628d0972b226___FREC_C.Rust%203655.JPG",
-    "potato_late_blight.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Potato___Late_blight/006955a3-0a79-4408-8f8d-4a11be076840___RS_LB%204936.JPG"
+    "potato_late_blight.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Potato___Late_blight/006955a3-0a79-4408-8f8d-4a11be076840___RS_LB%204936.JPG",
+    "corn_common_rust.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Corn_(maize)___Common_rust_/RS_Rust%201563.JPG",
+    "grape_black_rot.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Grape___Black_rot/00090b0f-c140-4e77-8d20-d39f67b75fcc___FAM_B.Rot%200376.JPG",
+    "peach_bacterial_spot.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Peach___Bacterial_spot/00130039-8425-42e9-9dd9-15aead7271ff___Rut._Bact.S%203421.JPG",
+    "pepper_bell_healthy.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Pepper%2C_bell___healthy/00100ffa-095e-4881-aebf-61fe5af7226e___JR_HL%207886.JPG",
+    "tomato_bacterial_spot.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Tomato___Bacterial_spot/00416648-be6e-4bd4-bc8d-82f43f8a7240___GCREC_Bact.Sp%203110.JPG",
+    "apple_scab.jpg": "https://raw.githubusercontent.com/spMohanty/PlantVillage-Dataset/master/raw/color/Apple___Apple_scab/00075aa8-d81a-4184-8541-b692b78d398a___FREC_Scab%203335.JPG"
 }
 
-# Key representative classes across crops for robust multi-class training
+# 30 core agricultural classes covering key fruits, cereals, vegetables, and solanaceous crops
 REPRESENTATIVE_CLASSES = [
     "Apple___Apple_scab",
     "Apple___Black_rot",
     "Apple___Cedar_apple_rust",
     "Apple___healthy",
+    "Cherry_(including_sour)___Powdery_mildew",
+    "Cherry_(including_sour)___healthy",
     "Corn_(maize)___Common_rust_",
     "Corn_(maize)___Northern_Leaf_Blight",
     "Corn_(maize)___healthy",
     "Grape___Black_rot",
+    "Grape___Esca_(Black_Measles)",
     "Grape___healthy",
     "Peach___Bacterial_spot",
     "Peach___healthy",
@@ -46,9 +55,16 @@ REPRESENTATIVE_CLASSES = [
     "Potato___Early_blight",
     "Potato___Late_blight",
     "Potato___healthy",
+    "Squash___Powdery_mildew",
+    "Strawberry___Leaf_scorch",
+    "Strawberry___healthy",
     "Tomato___Bacterial_spot",
     "Tomato___Early_blight",
     "Tomato___Late_blight",
+    "Tomato___Leaf_Mold",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
     "Tomato___healthy"
 ]
 
@@ -94,7 +110,7 @@ def setup_real_sample_images():
     print("✓ Real sample leaf images saved to sample_images/")
 
 
-def fetch_class_images(cls_name, num_train=8, num_val=2):
+def fetch_class_images(cls_name, num_train=16, num_val=4):
     train_dir = os.path.join(DATASET_DIR, "train", cls_name)
     val_dir = os.path.join(DATASET_DIR, "val", cls_name)
     os.makedirs(train_dir, exist_ok=True)

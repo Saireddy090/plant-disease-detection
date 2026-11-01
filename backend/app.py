@@ -127,6 +127,11 @@ def get_classes():
     }
 
 
+# Mount sample images directory for fast preview loading
+SAMPLE_IMAGES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_images")
+if os.path.exists(SAMPLE_IMAGES_DIR):
+    app.mount("/sample_images", StaticFiles(directory=SAMPLE_IMAGES_DIR), name="sample_images")
+
 # Mount static frontend build if present
 if os.path.exists(FRONTEND_DIST):
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="static")

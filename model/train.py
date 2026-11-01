@@ -114,7 +114,7 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
 
     # Initialize model
     model = PlantDiseaseMobileNet(num_classes=NUM_CLASSES, dropout_rate=dropout).to(device)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.08)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
@@ -128,6 +128,7 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
     print("-" * 80)
 
     best_val_acc = 0.0
+    os.makedirs(os.path.dirname(output_model), exist_ok=True)
 
     for epoch in range(1, epochs + 1):
         t0 = time.perf_counter()
@@ -177,18 +178,17 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
         epoch_val_acc = (correct_val / max(total_val, 1)) * 100.0
         elapsed_sec = round(time.perf_counter() - t0, 1)
 
-        print(f"{epoch:<8} {epoch_train_loss:<14.4f} {epoch_train_acc:<13.1f}% {epoch_val_loss:<14.4f} {epoch_val_acc:<13.1f}% {elapsed_sec:<6}s")
-
-        if epoch_val_acc > best_val_acc:
+        saved_flag = ""
+        if epoch_val_acc >= best_val_acc:
             best_val_acc = epoch_val_acc
+            torch.save(model.state_dict(), output_model)
+            saved_flag = " ★ [BEST]"
+
+        print(f"{epoch:<8} {epoch_train_loss:<14.4f} {epoch_train_acc:<13.1f}% {epoch_val_loss:<14.4f} {epoch_val_acc:<13.1f}% {elapsed_sec:<6}s{saved_flag}")
 
     print("=" * 80)
     print(f"\n[Result] Training Complete! Best Validation Accuracy: {best_val_acc:.2f}%")
-
-    # Save trained checkpoint
-    os.makedirs(os.path.dirname(output_model), exist_ok=True)
-    torch.save(model.state_dict(), output_model)
-    print(f"[Checkpoints] Saved trained CNN weights to: {output_model}\n")
+    print(f"[Checkpoints] Saved champion CNN weights to: {output_model}\n")
 
 
 if __name__ == "__main__":

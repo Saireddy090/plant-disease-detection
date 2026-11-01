@@ -79,6 +79,6 @@ case "$1" in
     echo "  Press Ctrl + C to stop the server anytime."
     echo "================================================================================"
     echo ""
-    $UVICORN backend.app:app --port 8000 --host 0.0.0.0
+    exec $UVICORN backend.app:app --port 8000 --host 0.0.0.0
     ;;
 esac
