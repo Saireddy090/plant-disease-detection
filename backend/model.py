@@ -70,36 +70,67 @@ def preprocess_image_opencv(image_bytes: bytes):
     return norm_tensor, img_bgr, plant_ratio, hsv
 
 
+try:
+    import torch
+    import torchvision.models as models
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+
+if TORCH_AVAILABLE:
+    class PlantDiseaseMobileNet(nn.Module):
+        def __init__(self, num_classes=38, dropout_rate=0.35):
+            super(PlantDiseaseMobileNet, self).__init__()
+            try:
+                weights = models.MobileNet_V2_Weights.DEFAULT
+                self.backbone = models.mobilenet_v2(weights=weights)
+            except Exception:
+                self.backbone = models.mobilenet_v2(weights=None)
+
+            in_features = self.backbone.last_channel
+            self.backbone.classifier = nn.Sequential(
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(in_features, 512),
+                nn.ReLU(inplace=True),
+                nn.Dropout(p=dropout_rate * 0.7),
+                nn.Linear(512, num_classes)
+            )
+
+        def forward(self, x):
+            return self.backbone(x)
+
+
 class PlantDiseaseClassifier:
     def __init__(self):
         self.classes = CLASSES_LIST
         self.num_classes = len(self.classes)
+        self.torch_model = None
         self.model_loaded = False
         self._init_classifier()
 
     def _init_classifier(self):
-        """Attempts to load PyTorch or TensorFlow model; falls back to feature-based neural predictor."""
-        try:
-            import torch
-            import torchvision.models as models
-            import torch.nn as nn
+        """Loads trained MobileNetV2 PyTorch model weights or falls back to feature engine."""
+        if not TORCH_AVAILABLE:
+            self.backend = "feature_engine"
+            return
 
-            model_path = os.path.join(MODEL_DIR, "plant_disease_cnn.pth")
-            # Build MobileNetV2 architecture matching Champion benchmark
-            base_model = models.mobilenet_v2(weights=None)
-            base_model.classifier[1] = nn.Sequential(
-                nn.Dropout(0.35),
-                nn.Linear(base_model.last_channel, self.num_classes)
-            )
-            if os.path.exists(model_path):
-                base_model.load_state_dict(torch.load(model_path, map_location="cpu"))
-                print(f"[Model] Successfully loaded PyTorch CNN weights from {model_path}")
-            base_model.eval()
-            self.torch_model = base_model
-            self.model_loaded = True
-            self.backend = "pytorch"
-        except Exception as e:
-            print(f"[Model] PyTorch load notice ({e}). Operating in resilient feature inference mode.")
+        model_path = os.path.join(MODEL_DIR, "plant_disease_cnn.pth")
+        if os.path.exists(model_path):
+            try:
+                model = PlantDiseaseMobileNet(num_classes=self.num_classes)
+                state = torch.load(model_path, map_location="cpu")
+                model.load_state_dict(state)
+                model.eval()
+                self.torch_model = model
+                self.model_loaded = True
+                self.backend = "pytorch_mobilenetv2"
+                print(f"[Model] Successfully loaded trained PyTorch MobileNetV2 CNN weights from {model_path}")
+            except Exception as e:
+                print(f"[Model] PyTorch weights load warning ({e}). Using feature inference fallback.")
+                self.backend = "feature_engine"
+        else:
             self.backend = "feature_engine"
 
     def predict(self, image_bytes: bytes, filename: str = ""):
@@ -116,6 +147,26 @@ class PlantDiseaseClassifier:
         is_leaf_warning = plant_ratio < 0.10
 
         probs = self._feature_predict(norm_tensor, hsv, filename)
+
+        # If trained PyTorch CNN model is active, evaluate tensor forward pass
+        if self.model_loaded and self.torch_model is not None and TORCH_AVAILABLE:
+            try:
+                img_t = torch.from_numpy(norm_tensor).permute(2, 0, 1).unsqueeze(0).float()
+                # ImageNet normalization
+                mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+                std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+                img_t = (img_t - mean) / std
+
+                with torch.no_grad():
+                    logits = self.torch_model(img_t)
+                    cnn_probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
+                
+                # Combine CNN predictions with morphological features for maximum stability
+                if np.max(cnn_probs) > 0.25:
+                    probs = 0.70 * cnn_probs + 0.30 * probs
+                    probs = probs / np.sum(probs)
+            except Exception as e:
+                pass
 
         t1 = time.perf_counter()
         inference_time_ms = round((t1 - t0) * 1000.0, 2)

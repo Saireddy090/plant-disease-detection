@@ -39,8 +39,12 @@ case "$1" in
     $PYTHON model/benchmark.py
     ;;
   --train)
-    echo " Launching Plant Disease CNN Training Pipeline..."
-    $PYTHON model/train.py --epochs 10 --batch-size 32 --lr 0.0002 --dropout 0.35
+    echo " Launching Plant Disease CNN Training Pipeline on Real Leaf Images..."
+    if [ ! -d "dataset/train" ]; then
+      echo " Fetching authentic PlantVillage leaf image dataset..."
+      $PYTHON model/download_dataset.py
+    fi
+    $PYTHON model/train.py --epochs 8 --batch-size 16 --lr 0.0003 --dropout 0.35
     ;;
   --dev)
     echo " Starting FastAPI Backend on http://localhost:8000..."

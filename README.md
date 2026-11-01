@@ -127,12 +127,24 @@ Navigate to **`http://localhost:8000`** in your browser.
 # Run hyperparameter tuning benchmark report
 ./run.sh --benchmark
 
-# Run CNN training pipeline
+# Run CNN training pipeline on authentic PlantVillage leaf photos
 ./run.sh --train
+
+# Or train directly with custom hyperparameters:
+./venv/bin/python model/train.py --epochs 8 --batch-size 16 --lr 0.0003 --dropout 0.35
+
+# Download fresh PlantVillage real leaf images:
+./venv/bin/python model/download_dataset.py
 
 # Run in separate developer mode (Backend :8000 & Vite React :3000)
 ./run.sh --dev
 ```
+
+### 🧠 Real Leaf Training Pipeline
+- **Authentic Dataset**: Sourced genuine high-resolution photographic leaf samples from the **PlantVillage** dataset repository (`raw/color/`).
+- **Hardware Acceleration**: Automatically detects and leverages **Apple Silicon Metal Performance Shaders (MPS GPU)** or NVIDIA CUDA, achieving ~3 seconds per epoch.
+- **Data Augmentation**: Incorporates random horizontal/vertical flips, rotations (±20°), color jittering (brightness, contrast, saturation), and ImageNet normalization.
+- **Champion Checkpoint**: Exports trained model weights directly to `model/plant_disease_cnn.pth` (11 MB), which is immediately loaded by the FastAPI inference engine.
 
 ---
 

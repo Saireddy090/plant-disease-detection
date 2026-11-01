@@ -7,11 +7,11 @@ __pycache__/
 *$py.class
 *.pth
 *.pt
+!model/plant_disease_cnn.pth
 
 # Node & Frontend dependencies
 node_modules/
 frontend/node_modules/
-frontend/dist/
 
 # SQLite databases (generated at runtime)
 database/*.db
