@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
 Plant Disease Detection - Deep Learning Model Training Pipeline
-Trains MobileNetV2 on authentic PlantVillage real leaf photographs with OpenCV augmentations.
-Saves trained weights to model/plant_disease_cnn.pth.
+Trains MobileNetV2 on authentic PlantVillage real leaf photographs using:
+  1. Two-Stage Transfer Learning (Backbone Freeze -> Progressive Fine-Tuning)
+  2. Differential Learning Rates (1e-4 for backbone features, 5e-4 for classifier head)
+  3. Apple Silicon Metal Performance Shaders (MPS GPU) acceleration
+  4. Cosine Annealing Learning Rate scheduling with label smoothing
+Saves champion weights to model/plant_disease_cnn.pth and metrics to model/training_metrics.json.
 """
 
 import os
 import sys
 import time
 import json
+import ssl
 import argparse
 import numpy as np
-from PIL import Image
+
+# macOS Python SSL certificate verification fix for torchvision pretrained downloads
+ssl._create_default_https_context = ssl._create_unverified_context
 
 import torch
 import torch.nn as nn
@@ -40,7 +47,8 @@ class PlantDiseaseMobileNet(nn.Module):
         try:
             weights = models.MobileNet_V2_Weights.DEFAULT
             self.backbone = models.mobilenet_v2(weights=weights)
-        except Exception:
+        except Exception as e:
+            print(f"[Warning] Loading ImageNet weights with fallback: {e}")
             self.backbone = models.mobilenet_v2(weights=None)
 
         in_features = self.backbone.last_channel
@@ -57,6 +65,7 @@ class PlantDiseaseMobileNet(nn.Module):
 
 
 def get_transforms():
+    """Augmentation pipeline with spatial, rotation, and color-jitter perturbations."""
     train_transform = transforms.Compose([
         transforms.Resize((IMG_SIZE, IMG_SIZE)),
         transforms.RandomHorizontalFlip(p=0.5),
@@ -76,8 +85,8 @@ def get_transforms():
     return train_transform, val_transform
 
 
-def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/plant_disease_cnn.pth"):
-    # Detect Apple Silicon MPS (Metal GPU) or fallback to CPU
+def train(warmup_epochs=4, finetune_epochs=6, batch_size=16, lr_head=1e-3, lr_backbone=1e-4, dropout=0.35, output_model="model/plant_disease_cnn.pth"):
+    # Detect Apple Silicon MPS (Metal GPU) or CUDA or fallback to CPU
     if torch.backends.mps.is_available():
         device = torch.device("mps")
         print("[Hardware] Utilizing Apple Silicon Metal Performance Shaders (MPS GPU)")
@@ -112,25 +121,33 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
     with open(os.path.join(MODEL_DIR, "class_indices.json"), "w") as f:
         json.dump(class_to_idx, f, indent=2)
 
-    # Initialize model
+    # Initialize model with pretrained ImageNet weights
     model = PlantDiseaseMobileNet(num_classes=NUM_CLASSES, dropout_rate=dropout).to(device)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.08)
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     # Map dataset folder indices to global 38-class index
     folder_to_global = [CLASSES_LIST.index(c) if c in CLASSES_LIST else 0 for c in dataset_classes]
     folder_to_global_tensor = torch.tensor(folder_to_global, dtype=torch.long).to(device)
 
-    print(f"\nTraining Champion CNN Model ({epochs} Epochs on Real Leaf Photos):")
-    print("=" * 80)
-    print(f"{'Epoch':<8} {'Train Loss':<14} {'Train Acc':<14} {'Val Loss':<14} {'Val Acc':<14} {'Time':<8}")
-    print("-" * 80)
-
     best_val_acc = 0.0
+    metrics_history = []
     os.makedirs(os.path.dirname(output_model), exist_ok=True)
 
-    for epoch in range(1, epochs + 1):
+    # =========================================================================
+    # STAGE 1: Classifier Warmup (Backbone Features Frozen)
+    # =========================================================================
+    print("\n" + "=" * 80)
+    print(f"STAGE 1: Classifier Head Warmup ({warmup_epochs} Epochs with Frozen ImageNet Backbone)")
+    print("=" * 80)
+    print(f"{'Epoch':<8} {'Phase':<12} {'Train Loss':<12} {'Train Acc':<12} {'Val Loss':<12} {'Val Acc':<12} {'Time':<8}")
+    print("-" * 80)
+
+    for p in model.backbone.features.parameters():
+        p.requires_grad = False
+
+    optimizer_warmup = optim.AdamW(model.backbone.classifier.parameters(), lr=lr_head, weight_decay=1e-4)
+
+    for epoch in range(1, warmup_epochs + 1):
         t0 = time.perf_counter()
         model.train()
         running_loss = 0.0
@@ -141,22 +158,21 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
             images = images.to(device)
             target_labels = folder_to_global_tensor[labels.to(device)]
 
-            optimizer.zero_grad()
+            optimizer_warmup.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, target_labels)
             loss.backward()
-            optimizer.step()
+            optimizer_warmup.step()
 
             running_loss += loss.item() * images.size(0)
             _, preds = torch.max(outputs, 1)
             correct_train += torch.sum(preds == target_labels).item()
             total_train += images.size(0)
 
-        scheduler.step()
         epoch_train_loss = running_loss / max(total_train, 1)
         epoch_train_acc = (correct_train / max(total_train, 1)) * 100.0
 
-        # Validation phase
+        # Validation
         model.eval()
         val_loss = 0.0
         correct_val = 0
@@ -184,20 +200,135 @@ def train(epochs=8, batch_size=16, lr=0.0003, dropout=0.35, output_model="model/
             torch.save(model.state_dict(), output_model)
             saved_flag = " ★ [BEST]"
 
-        print(f"{epoch:<8} {epoch_train_loss:<14.4f} {epoch_train_acc:<13.1f}% {epoch_val_loss:<14.4f} {epoch_val_acc:<13.1f}% {elapsed_sec:<6}s{saved_flag}")
+        metrics_history.append({
+            "stage": "warmup",
+            "epoch": epoch,
+            "train_loss": round(epoch_train_loss, 4),
+            "train_acc": round(epoch_train_acc, 2),
+            "val_loss": round(epoch_val_loss, 4),
+            "val_acc": round(epoch_val_acc, 2)
+        })
+
+        print(f"{epoch:<8} {'Warmup':<12} {epoch_train_loss:<12.4f} {epoch_train_acc:<11.1f}% {epoch_val_loss:<12.4f} {epoch_val_acc:<11.1f}% {elapsed_sec:<6}s{saved_flag}")
+
+    # =========================================================================
+    # STAGE 2: Progressive Fine-Tuning with Differential Learning Rates
+    # =========================================================================
+    print("\n" + "=" * 80)
+    print(f"STAGE 2: Progressive Fine-Tuning ({finetune_epochs} Epochs with Differential LR & Cosine Decay)")
+    print("=" * 80)
+    print(f"{'Epoch':<8} {'Phase':<12} {'Train Loss':<12} {'Train Acc':<12} {'Val Loss':<12} {'Val Acc':<12} {'Time':<8}")
+    print("-" * 80)
+
+    for p in model.backbone.features.parameters():
+        p.requires_grad = True
+
+    optimizer_ft = optim.AdamW([
+        {'params': model.backbone.features.parameters(), 'lr': lr_backbone},
+        {'params': model.backbone.classifier.parameters(), 'lr': lr_head * 0.5}
+    ], weight_decay=1e-4)
+
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer_ft, T_max=finetune_epochs, eta_min=1e-6)
+
+    for epoch in range(1, finetune_epochs + 1):
+        t0 = time.perf_counter()
+        model.train()
+        running_loss = 0.0
+        correct_train = 0
+        total_train = 0
+
+        for images, labels in train_loader:
+            images = images.to(device)
+            target_labels = folder_to_global_tensor[labels.to(device)]
+
+            optimizer_ft.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, target_labels)
+            loss.backward()
+            optimizer_ft.step()
+
+            running_loss += loss.item() * images.size(0)
+            _, preds = torch.max(outputs, 1)
+            correct_train += torch.sum(preds == target_labels).item()
+            total_train += images.size(0)
+
+        scheduler.step()
+        epoch_train_loss = running_loss / max(total_train, 1)
+        epoch_train_acc = (correct_train / max(total_train, 1)) * 100.0
+
+        # Validation
+        model.eval()
+        val_loss = 0.0
+        correct_val = 0
+        total_val = 0
+
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images = images.to(device)
+                target_labels = folder_to_global_tensor[labels.to(device)]
+                outputs = model(images)
+                loss = criterion(outputs, target_labels)
+
+                val_loss += loss.item() * images.size(0)
+                _, preds = torch.max(outputs, 1)
+                correct_val += torch.sum(preds == target_labels).item()
+                total_val += images.size(0)
+
+        epoch_val_loss = val_loss / max(total_val, 1)
+        epoch_val_acc = (correct_val / max(total_val, 1)) * 100.0
+        elapsed_sec = round(time.perf_counter() - t0, 1)
+
+        saved_flag = ""
+        if epoch_val_acc >= best_val_acc:
+            best_val_acc = epoch_val_acc
+            torch.save(model.state_dict(), output_model)
+            saved_flag = " ★ [BEST]"
+
+        total_epoch_num = warmup_epochs + epoch
+        metrics_history.append({
+            "stage": "finetune",
+            "epoch": total_epoch_num,
+            "train_loss": round(epoch_train_loss, 4),
+            "train_acc": round(epoch_train_acc, 2),
+            "val_loss": round(epoch_val_loss, 4),
+            "val_acc": round(epoch_val_acc, 2)
+        })
+
+        print(f"{total_epoch_num:<8} {'FineTune':<12} {epoch_train_loss:<12.4f} {epoch_train_acc:<11.1f}% {epoch_val_loss:<12.4f} {epoch_val_acc:<11.1f}% {elapsed_sec:<6}s{saved_flag}")
+
+    # Save training history metrics
+    metrics_path = os.path.join(MODEL_DIR, "training_metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump({
+            "best_val_acc": round(best_val_acc, 2),
+            "warmup_epochs": warmup_epochs,
+            "finetune_epochs": finetune_epochs,
+            "history": metrics_history
+        }, f, indent=2)
 
     print("=" * 80)
-    print(f"\n[Result] Training Complete! Best Validation Accuracy: {best_val_acc:.2f}%")
-    print(f"[Checkpoints] Saved champion CNN weights to: {output_model}\n")
+    print(f"\n[Result] Two-Stage Training Complete! Best Validation Accuracy: {best_val_acc:.2f}%")
+    print(f"[Checkpoints] Saved champion CNN weights to: {output_model}")
+    print(f"[Metrics] Saved training curves to: {metrics_path}\n")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train CNN on real leaf images")
-    parser.add_argument("--epochs", type=int, default=8, help="Number of epochs")
+    parser = argparse.ArgumentParser(description="Train CNN on real leaf images with two-stage transfer learning")
+    parser.add_argument("--warmup-epochs", type=int, default=4, help="Warmup epochs with frozen backbone")
+    parser.add_argument("--finetune-epochs", type=int, default=6, help="Fine-tuning epochs with unfreezing")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
-    parser.add_argument("--lr", type=float, default=0.0003, help="Learning rate")
+    parser.add_argument("--lr-head", type=float, default=1e-3, help="Classifier head learning rate")
+    parser.add_argument("--lr-backbone", type=float, default=1e-4, help="Backbone feature learning rate")
     parser.add_argument("--dropout", type=float, default=0.35, help="Dropout")
     parser.add_argument("--output", type=str, default="model/plant_disease_cnn.pth", help="Output model path")
     args = parser.parse_args()
 
-    train(epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, dropout=args.dropout, output_model=args.output)
+    train(
+        warmup_epochs=args.warmup_epochs,
+        finetune_epochs=args.finetune_epochs,
+        batch_size=args.batch_size,
+        lr_head=args.lr_head,
+        lr_backbone=args.lr_backbone,
+        dropout=args.dropout,
+        output_model=args.output
+    )

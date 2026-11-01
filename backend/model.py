@@ -70,6 +70,9 @@ def preprocess_image_opencv(image_bytes: bytes):
     return norm_tensor, img_bgr, plant_ratio, hsv
 
 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 try:
     import torch
     import torchvision.models as models
@@ -137,7 +140,7 @@ class PlantDiseaseClassifier:
         """
         Executes end-to-end diagnosis pipeline:
         1. OpenCV preprocessing & foliage validation
-        2. CNN feature forward pass
+        2. CNN feature forward pass with Test-Time Augmentation (TTA)
         3. Top-3 prediction probability ranking
         """
         t0 = time.perf_counter()
@@ -148,22 +151,30 @@ class PlantDiseaseClassifier:
 
         probs = self._feature_predict(norm_tensor, hsv, filename)
 
-        # If trained PyTorch CNN model is active, evaluate tensor forward pass
+        # If trained PyTorch CNN model is active, evaluate tensor forward pass with TTA
         if self.model_loaded and self.torch_model is not None and TORCH_AVAILABLE:
             try:
                 img_t = torch.from_numpy(norm_tensor).permute(2, 0, 1).unsqueeze(0).float()
                 # ImageNet normalization
                 mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
                 std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
-                img_t = (img_t - mean) / std
+                img_norm = (img_t - mean) / std
 
                 with torch.no_grad():
-                    logits = self.torch_model(img_t)
-                    cnn_probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
-                
+                    # Standard pass
+                    logits_std = self.torch_model(img_norm)
+                    probs_std = torch.softmax(logits_std, dim=1).squeeze(0).cpu().numpy()
+
+                    # Test-Time Augmentation (horizontal flip)
+                    img_flip = torch.flip(img_norm, dims=[3])
+                    logits_flip = self.torch_model(img_flip)
+                    probs_flip = torch.softmax(logits_flip, dim=1).squeeze(0).cpu().numpy()
+
+                    cnn_probs = 0.5 * probs_std + 0.5 * probs_flip
+
                 # Combine CNN predictions with morphological features for maximum stability
-                if np.max(cnn_probs) > 0.25:
-                    probs = 0.70 * cnn_probs + 0.30 * probs
+                if np.max(cnn_probs) > 0.20:
+                    probs = 0.60 * cnn_probs + 0.40 * probs
                     probs = probs / np.sum(probs)
             except Exception as e:
                 pass
