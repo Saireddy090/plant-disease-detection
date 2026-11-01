@@ -314,21 +314,32 @@ def train(warmup_epochs=4, finetune_epochs=6, batch_size=16, lr_head=1e-3, lr_ba
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train CNN on real leaf images with two-stage transfer learning")
+    parser.add_argument("--epochs", type=int, default=None, help="Total epochs (auto-splits into warmup & finetune)")
     parser.add_argument("--warmup-epochs", type=int, default=4, help="Warmup epochs with frozen backbone")
     parser.add_argument("--finetune-epochs", type=int, default=6, help="Fine-tuning epochs with unfreezing")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
+    parser.add_argument("--lr", type=float, default=None, help="Base learning rate")
     parser.add_argument("--lr-head", type=float, default=1e-3, help="Classifier head learning rate")
     parser.add_argument("--lr-backbone", type=float, default=1e-4, help="Backbone feature learning rate")
     parser.add_argument("--dropout", type=float, default=0.35, help="Dropout")
     parser.add_argument("--output", type=str, default="model/plant_disease_cnn.pth", help="Output model path")
     args = parser.parse_args()
 
+    warmup = args.warmup_epochs
+    finetune = args.finetune_epochs
+    if args.epochs is not None:
+        warmup = max(1, args.epochs // 3)
+        finetune = max(1, args.epochs - warmup)
+
+    lr_head = args.lr_head if args.lr is None else args.lr
+    lr_backbone = args.lr_backbone if args.lr is None else args.lr * 0.3
+
     train(
-        warmup_epochs=args.warmup_epochs,
-        finetune_epochs=args.finetune_epochs,
+        warmup_epochs=warmup,
+        finetune_epochs=finetune,
         batch_size=args.batch_size,
-        lr_head=args.lr_head,
-        lr_backbone=args.lr_backbone,
+        lr_head=lr_head,
+        lr_backbone=lr_backbone,
         dropout=args.dropout,
         output_model=args.output
     )
