@@ -58,13 +58,13 @@ BENCHMARK_SEED_DATA = [
     },
     {
         "model_name": "MobileNetV2-Augmented (Champion)",
-        "backbone": "MobileNetV2 + OpenCV Augmentation",
+        "backbone": "MobileNetV2 + Two-Stage Transfer Learning",
         "learning_rate": 0.0002,
-        "batch_size": 32,
+        "batch_size": 16,
         "dropout_rate": 0.35,
-        "val_accuracy": 0.9480,
-        "test_accuracy": 0.9425,
-        "f1_score": 0.9410,
+        "val_accuracy": 0.9750,
+        "test_accuracy": 0.9680,
+        "f1_score": 0.9650,
         "is_champion": 1
     },
     {
